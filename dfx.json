@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "MateFinance_backend": {
+      "main": "src/MateFinance_backend/main.mo",
+      "type": "motoko"
+    },
+    "MateFinance_frontend": {
+      "dependencies": [
+        "MateFinance_backend"
+      ],
+      "source": [
+        "src/MateFinance_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "MateFinance_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
