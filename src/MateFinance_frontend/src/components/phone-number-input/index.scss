@@ -1,0 +1,27 @@
+// @import '~react-phone-number-input/style.css';
+@use 'react-phone-number-input/style.css';
+@import '../../theme/scss/core/_palette.module.scss'; // Define your custom styles
+
+.phone-input {
+  .PhoneInputInput {
+    // Styles for the input element
+    // font-size: 1rem;
+    border: 1px solid $warning_contrast;
+    border-radius: 8px;
+    width: 100%;
+    // background-color: $background-color;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    padding: 8.5px 14px;
+
+    &:focus {
+      outline: none;
+      //   border-color: $primary_main;
+      //   box-shadow: 0 0 0 2px lighten($primary_main, 20%);
+    }
+  }
+  &.phone-input-size {
+    .PhoneInputInput {
+      padding: 16.5px 14px;
+    }
+  }
+}
