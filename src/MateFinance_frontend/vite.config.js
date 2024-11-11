@@ -1,10 +1,12 @@
-import  { fileURLToPath, URL } from 'url';
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
-import environment from 'vite-plugin-environment';
 import dotenv from 'dotenv';
-// import checker from 'vite-plugin-checker';
 import path from 'path';
+import { fileURLToPath, URL } from 'url';
+import { defineConfig } from 'vite';
+import checker from 'vite-plugin-checker';
+import environment from 'vite-plugin-environment';
+// import reactDefault from '@vitejs/plugin-react';
+
 
 
 dotenv.config({ path: '../../.env' });
@@ -21,6 +23,7 @@ export default defineConfig({
     },
   },
   server: {
+    
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:4943',
@@ -34,16 +37,14 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    // checker({
-    //   eslint: {
-    //     lintCommand: 'eslint "./src/**/*.{js,jsx,ts,tsx}"',
-    //   },
-    //   overlay: {
-    //     initialIsOpen: false,
-    //   },
-    // }),
-    environment('all', { prefix: 'CANISTER_' }),
-    environment('all', { prefix: 'DFX_' }),
+    // reactDefault(),
+    checker({
+      overlay: {
+        initialIsOpen: false,
+      },
+    }),
+    environment("all", { prefix: "CANISTER_" }),
+    environment("all", { prefix: "DFX_" }),
   ],
   resolve: {
     alias: [

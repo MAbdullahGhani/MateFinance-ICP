@@ -8,11 +8,14 @@
       "dependencies": [
         "MateFinance_backend"
       ],
+      "workspace": "MateFinance_frontend",
       "source": [
         "src/MateFinance_frontend/dist"
       ],
       "type": "assets",
-      "workspace": "MateFinance_frontend"
+      "headers": {
+        "Content-Security-Policy": "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+      }
     }
   },
   "defaults": {

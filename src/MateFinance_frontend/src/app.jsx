@@ -33,6 +33,7 @@ import { defaultWagmiConfig } from '@web3modal/wagmi/react/config';
 import { WagmiConfig } from 'wagmi';
 import { arbitrum, arbitrumSepolia, mainnet, haqqMainnet, haqqTestedge2 } from 'viem/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 // ----------------------------------------------------------------------
 
@@ -66,6 +67,23 @@ export default function App() {
     enableOnramp: true, // Optional - false as default
   });
 
+  const getAllCountries = () => {
+    try {
+      fetch('https://beta.invoicemate.net/api/country/getAllCountriesThroughLibrary')
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("🔥",data);
+        });
+      
+    } catch (error) {
+      console.error(error);
+      
+    }
+  }
+
+  useEffect(() => {
+    getAllCountries();
+  }, []);
   return (
     <AuthProvider>
       <LocalizationProvider>
