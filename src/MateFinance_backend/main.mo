@@ -164,10 +164,9 @@ shared (msg) actor class IcpInvoiceMateContract() = this {
     };
   };
 
-
   public shared (msg) func whoami() : async Principal {
-        msg.caller
-    };
+    msg.caller;
+  };
 
   public shared (msg) func requestLoan(_borrower : ICRC.Account, _principalAmount : Nat, _loanTerm : Nat, _tokenURI : Text, _apy : Nat) : async Result.Result<(Nat, Principal), Text> {
 
