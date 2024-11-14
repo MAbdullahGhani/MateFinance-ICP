@@ -34,6 +34,10 @@ import { useSnackbar } from 'src/components/snackbar';
 import { ATTACHMENT_TOKEN, ATTACHMENT_URL, IM_HOST_API } from 'src/config-global';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 import { useAuthContext } from 'src/auth/hooks';
+import { idlFactory } from 'declarations/MateFinance_backend';
+import { Actor, HttpAgent } from '@dfinity/agent';
+import { AuthClient } from '@dfinity/auth-client';
+import { Principal } from '@dfinity/principal';
 
 // ----------------------------------------------------------------------
 
@@ -317,104 +321,137 @@ export default function DealNewEditForm({ currentJob }) {
     return daysNumber;
   };
 
-  let uriError = false;
-  let invoiceUri = '';
-  const getInvoiceURI = async (data) => {
-    try {
-      let payload = {
-        InvoiceId: financialDetail?.invoiceId, // inv,
-        MongoId: financialDetail?.invoiceMongoId, // inv mongo id,
-        FinanceId: financialDetail?.financeId, // finance id,
-        Type: 'invoiceFinance', // string finance,
-      };
-      let editPayload = {
-        InvoiceId: financialDetail?.Borrower?.invoiceId, // inv,
-        MongoId: financialDetail?.Borrower?.invoiceMongoId, // inv mongo id,
-        FinanceId: financialDetail?.Borrower?.financeId, // finance id,
-        Type: 'invoiceFinance', // string finance,
-      };
-
-      const res = await axios.post(
-        `https://betapbc.invoicemate.net/ipfs-api/upload`,
-        edit === 'true' ? editPayload : payload
-      );
-      //ipfs.io/ipfs/QmQ4g2FK6ccjKdZynf17M1GDCjKHBVXa9XgtFbxHs3PdKY
-      https: if (res?.data?.cid?.IpfsHash) {
-        setInvoiceURI(`https://ipfs.io/ipfs/${res?.data?.cid?.IpfsHash}`);
-        invoiceUri = `https://ipfs.io/ipfs/${res?.data?.cid?.IpfsHash}`;
-      } else {
-        enqueueSnackbar('There is some issue in generating hash. Please check after few time.', {
-          variant: 'error',
-        });
-        uriError = true;
-      }
-    } catch (error) {
-      uriError = true;
-      enqueueSnackbar(error, {
-        variant: 'error',
-      });
-    }
-  };
-
+ 
   let returnBlockChainId = '';
 
   // FOR SMART CONTRACT FUNCTION CALLING
   const storeBorrowerDetails = async (data) => {
-    const { haqq, arbitrum } = user;
+    // const { haqq, arbitrum } = user;
 
-    let check = values.chain === 'Haqq Network';
+    // let check = values.chain === 'Haqq Network';
 
-    uriError = false;
-    await getInvoiceURI(data);
-    if (uriError) {
-      return;
-    }
 
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: check ? haqq?.haqqChainId : arbitrum?.haqqChainId }], //chainId must be in hexadecimal numbers
-    });
+    // await window.ethereum.request({
+    //   method: 'wallet_switchEthereumChain',
+    //   params: [{ chainId: check ? haqq?.haqqChainId : arbitrum?.haqqChainId }], //chainId must be in hexadecimal numbers
+    // });
 
-    const _walletPrivateKey = check ? haqq?.walletPrivateKey : arbitrum?.walletPrivateKey;
-    const _invoiceMateContract = check
-      ? haqq?.InvoiceMateContractAddress
-      : arbitrum?.InvoiceMateContractAddress; // Replace with your contract address
+    // const _walletPrivateKey = check ? haqq?.walletPrivateKey : arbitrum?.walletPrivateKey;
+    // const _invoiceMateContract = check
+    //   ? haqq?.InvoiceMateContractAddress
+    //   : arbitrum?.InvoiceMateContractAddress; // Replace with your contract address
     // Create ethers wallet instance using private key
-    const wallet = new ethers.Wallet(_walletPrivateKey);
+    // const wallet = new ethers.Wallet(_walletPrivateKey);
 
     // Create provider
-    const provider = new ethers.providers.JsonRpcProvider(
-      check ? haqq?.jsonURL : arbitrum?.jsonURL
-    );
+    // const provider = new ethers.providers.JsonRpcProvider(
+    //   check ? haqq?.jsonURL : arbitrum?.jsonURL
+    // );
 
     // Use wallet to connect to provider
-    const deployer = wallet.connect(provider);
-    const borrower = data?.borrowerWallet;
-    const invoiceMateContract = new ethers.Contract(
-      _invoiceMateContract,
-      check ? haqq?.InvoiceMateContractABI : arbitrum?.InvoiceMateContractABI,
-      deployer
-    );
+    // const deployer = wallet.connect(provider);
+    // const borrower = data?.borrowerWallet;
+    // const invoiceMateContract = new ethers.Contract(
+    //   _invoiceMateContract,
+    //   check ? haqq?.InvoiceMateContractABI : arbitrum?.InvoiceMateContractABI,
+    //   deployer
+    // );
     const principleAmt = 1000000 * data?.loanAmount;
     try {
-      const txn = await invoiceMateContract.connect(deployer).whitelistBorrowerAddress(borrower);
-      await txn.wait();
-      const tx = await invoiceMateContract.connect(deployer).requestLoan(
-        borrower,
-        principleAmt, // principle
-        convertDaysToMonths(data?.loanTenure), //loan term months
-        invoiceUri,
-        data?.apyRate
+      let iiUrl = '';
+      if (process.env.DFX_NETWORK === "local") {
+        iiUrl = `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:4943/`;
+      } else if (process.env.DFX_NETWORK === "ic") {
+        iiUrl = `https://${process.env.CANISTER_ID_INTERNET_IDENTITY}.ic0.app`;
+      } else {
+        iiUrl = `https://${process.env.CANISTER_ID_INTERNET_IDENTITY}.dfinity.network`;
+      }
+
+      const authClient = await AuthClient.create();
+
+      await new Promise((resolve, reject) => {
+        authClient.login({
+          identityProvider: iiUrl,
+          onSuccess: resolve,
+          onError: reject,
+        });
+      });
+
+      const identity = authClient.getIdentity();
+      const agent = new HttpAgent({ identity });
+      await agent.fetchRootKey();
+
+      const webapp = Actor.createActor(idlFactory, {
+        agent,
+        canisterId: process.env.CANISTER_ID_MATEFINANCE_BACKEND,
+      });
+
+      const principal = await webapp.whoami();
+      console.log(Principal.fromUint8Array(principal._arr).toString());
+      const arg = {
+        owner: Principal.fromUint8Array(principal._arr),
+        subaccount: []
+      };
+
+      const inintArg = {
+        pool: {
+          owner: Principal.fromText("cqmja-aix6l-o2mnj-fw5m7-vcq3a-jx27l-grb3e-ll5e7-s3hyn-seoib-xqe"),
+          subaccount: []
+        },
+        usdc: Principal.fromText("a4tbr-q4aaa-aaaaa-qaafq-cai") ,
+        defaultAdmin: arg,
+        imfundsReceiver: {
+          owner: Principal.fromText("cqmja-aix6l-o2mnj-fw5m7-vcq3a-jx27l-grb3e-ll5e7-s3hyn-seoib-xqe"),
+          subaccount: []
+        },
+        defa: Principal.fromText("avqkn-guaaa-aaaaa-qaaea-cai")
+      }
+
+      const initiliaze  = await webapp.initialize(inintArg);
+      if(initiliaze.err){
+        console.log("initialize", initiliaze.err);
+        throw new Error(initiliaze.err);
+      }
+      // Whitelist borrower address
+      const whitelistResult = await webapp._whitelistBorrowerAddress(arg);
+      if (whitelistResult.err) {
+        console.log(whitelistResult.err);
+        throw new Error(whitelistResult.err);
+      }
+
+      // Request loan
+      const requestLoanResult = await webapp.requestLoan(
+        arg,
+        BigInt(principleAmt),
+        BigInt(convertDaysToMonths(data?.loanTenure)),
+        "https://www.google.com",
+        BigInt(data?.apyRate)
       );
-      const receipt = await tx.wait();
-      console.log(receipt);
-      if (receipt.status === 1) {
+
+      if (requestLoanResult.err) {
+        throw new Error(requestLoanResult.err);
+      }
+
+      const [loanId, borrowerPrincipal] = requestLoanResult.ok;
+      returnBlockChainId = Number(loanId);
+      // const txn = await invoiceMateContract.connect(deployer).whitelistBorrowerAddress(borrower);
+      // await txn.wait();
+      // const tx = await invoiceMateContract.connect(deployer).requestLoan(
+      //   borrower,
+      //   principleAmt, // principle
+      //   convertDaysToMonths(data?.loanTenure), //loan term months
+      //   invoiceUri,
+      //   data?.apyRate
+      // );
+      // const receipt = await tx.wait();
+      // console.log(receipt);
+      // if (receipt.status === 1) {
         // Extract the returned ID from the transaction receipt
-        const returnedId = receipt.events[0].args.currentId.toNumber();
-        console.log('Returned ID:', returnedId);
-        returnBlockChainId = returnedId;
-        let result = await invoiceMateContract.getBorrowerLoanDetails(borrower, returnedId);
-        console.log(result);
+        // const returnedId = receipt.events[0].args.currentId.toNumber();
+        // console.log('Returned ID:', returnedId);
+        // returnBlockChainId = returnedId;
+        // let result = await invoiceMateContract.getBorrowerLoanDetails(borrower, returnedId);
+        // console.log(result);
         // return result.tokenURI;
         // Create a new pool on invoiceMate
         let payload = {
@@ -424,25 +461,26 @@ export default function DealNewEditForm({ currentJob }) {
           status: 'tokenized',
           borrowerID: financialDetail?._id,
           invoiceMongoId: financialDetail?.invoiceMongoId,
-          returnBlockChainId: returnBlockChainId,
+          // returnBlockChainId: returnBlockChainId,
         };
         await axiosInstance.post(
           edit !== 'true' ? endpoints.app.createDeal : endpoints.app.updateDeal,
           {
             ...payload,
           }
-        );
-        setIsCreatingPool(false);
-        enqueueSnackbar('Deal Created Successfully');
-        router.push(paths.dashboard.marketPlace.marketPlaceList);
-      } else {
-        console.error('Transaction failed:', receipt);
-      }
+          );
+      setIsCreatingPool(false);
+      enqueueSnackbar('Deal Created Successfully');
+      router.push(paths.dashboard.marketPlace.marketPlaceList);
+      // } else {
+      //   console.error('Transaction failed:', receipt);
+      // }
     } catch (err) {
       console.error('Error:', err);
       enqueueSnackbar(err, {
         variant: 'error',
       });
+      setIsCreatingPool(false);
     }
   };
 
